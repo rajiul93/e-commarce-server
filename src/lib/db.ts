@@ -2,6 +2,8 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import config from '../config';
 
+mongoose.set('bufferCommands', false);
+
 type MongooseCache = {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;

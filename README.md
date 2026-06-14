@@ -234,6 +234,50 @@ Each module follows: **router** → **controller** → **service** → **model**
 
 ---
 
+## Deploy on Vercel (server)
+
+### 1. Environment variables (required)
+
+In Vercel project **e-commarce-server** → Settings → Environment Variables, add:
+
+| Variable | Example |
+|----------|---------|
+| `DATABASE_URL` | `mongodb+srv://user:pass@cluster.mongodb.net/ecommerce` |
+| `CORS_ORIGIN` | `https://e-commarce-neon.vercel.app,http://localhost:3000` |
+| `NODE_ENV` | `production` |
+| `JWT_SECRET` | strong random string |
+| `JWT_ACCESS_SECRET` | strong random string |
+| `JWT_REFRESH_SECRET` | strong random string |
+| `R2_ACCOUNT_ID` | Cloudflare R2 |
+| `R2_ACCESS_KEY_ID` | … |
+| `R2_SECRET_ACCESS_KEY` | … |
+| `R2_BUCKET_NAME` | … |
+| `R2_BUCKET_URL` | … |
+
+Without `DATABASE_URL` on Vercel, every API call returns 500.
+
+### 2. MongoDB Atlas
+
+Network Access → **Add IP** → `0.0.0.0/0` (allow all — required for Vercel serverless).
+
+### 3. Deploy & verify
+
+Push to GitHub → Redeploy with **Clear build cache**.
+
+Test: `https://e-commarce-server.vercel.app/api/v1/health`  
+Should return `"connected": true`.
+
+### 4. Front (Vercel)
+
+```
+NEXT_PUBLIC_API_URL=https://e-commarce-server.vercel.app
+NEXT_PUBLIC_SITE_URL=https://e-commarce-neon.vercel.app
+```
+
+Local dev with live API: put the same `NEXT_PUBLIC_API_URL` in `front/.env.local` and restart `pnpm dev`.
+
+---
+
 ## Deployment notes
 
 - Set `NODE_ENV=production` for secure cookies (`sameSite: none`, `secure: true`)

@@ -20,7 +20,8 @@ import { VariantRoutes } from './src/modules/variant/variant.router';
 import { StaffPayrollRoutes } from './src/modules/staffPayroll/staffPayroll.router';
 import { AnalyticsRoutes } from './src/modules/analytics/analytics.router';
 import { ExpenseRoutes } from './src/modules/expense/expense.router';
-import { connectDB } from './src/lib/db';
+import { connectDB, isDbConnected } from './src/lib/db';
+import config from './src/config';
 
 const app = express();
 
@@ -65,6 +66,24 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.get('/api/v1/health', async (_req, res) => {
+  const dbConfigured = Boolean(config.database_url?.trim());
+  try {
+    await connectDB();
+    res.status(200).json({
+      status: 200,
+      message: 'OK',
+      data: { dbConfigured, connected: isDbConnected() },
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 503,
+      message: error instanceof Error ? error.message : 'Database connection failed',
+      data: { dbConfigured, connected: false },
+    });
+  }
+});
 
 app.use(async (req, res, next) => {
   try {
