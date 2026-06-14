@@ -20,6 +20,7 @@ import { VariantRoutes } from './src/modules/variant/variant.router';
 import { StaffPayrollRoutes } from './src/modules/staffPayroll/staffPayroll.router';
 import { AnalyticsRoutes } from './src/modules/analytics/analytics.router';
 import { ExpenseRoutes } from './src/modules/expense/expense.router';
+import { connectDB } from './src/lib/db';
 
 const app = express();
 
@@ -64,6 +65,15 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Hello World!');

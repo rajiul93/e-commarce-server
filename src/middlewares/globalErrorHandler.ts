@@ -46,7 +46,14 @@ const globalErrorHandler = (err: any, req: Request, res: Response, next: NextFun
   }
 
   // Mongo network / connection errors
-  if (err && (err.name === 'MongoNetworkError' || /failed to connect/i.test(err.message || ''))) {
+  if (
+    err &&
+    (err.name === 'MongoNetworkError' ||
+      err.name === 'MongoServerSelectionError' ||
+      /failed to connect/i.test(err.message || '') ||
+      /buffering timed out/i.test(err.message || '') ||
+      err.message === 'DATABASE_URL is not configured')
+  ) {
     return res.status(httpStatus.SERVICE_UNAVAILABLE).json({
       status: httpStatus.SERVICE_UNAVAILABLE,
       message: 'Database connection failed',
