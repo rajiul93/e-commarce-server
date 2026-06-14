@@ -22,17 +22,48 @@ import { AnalyticsRoutes } from './src/modules/analytics/analytics.router';
 import { ExpenseRoutes } from './src/modules/expense/expense.router';
 
 const app = express();
-const corsOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:3000';
+
+function normalizeOrigin(value: string) {
+  return value.trim().replace(/\/+$/, '');
+}
+
+const allowedOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:3000')
+  .split(',')
+  .map(normalizeOrigin)
+  .filter(Boolean);
+
+const allowsVercelPreviews = allowedOrigins.some((origin) => origin.includes('.vercel.app'));
+
+function isOriginAllowed(origin: string) {
+  const normalized = normalizeOrigin(origin);
+  if (allowedOrigins.includes(normalized)) return true;
+  if (allowsVercelPreviews && normalized.endsWith('.vercel.app')) return true;
+  return false;
+}
+
 app.use(
   cors({
-    origin: corsOrigin.split(',').map((o) => o.trim()),
+    origin(origin, callback) {
+      // Server-to-server, curl, health checks — no Origin header
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
+    },
     credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    optionsSuccessStatus: 204,
   }),
 );
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-const port = 3000;
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Hello World!');
