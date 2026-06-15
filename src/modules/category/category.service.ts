@@ -10,6 +10,7 @@ import { Category } from './category.model';
 type CreatePayload = {
   userId: string;
   categoryName: string;
+  slug?: string;
   description?: string;
   image?: string;
   parentCategory?: string | null;
@@ -86,7 +87,9 @@ const createCategoryIntoDB = async (payload: CreatePayload) => {
     throw new AppError('Category already exists under this parent', httpStatus.CONFLICT);
   }
 
-  const slugBase = makeSlug(categoryName);
+  const slugBase = payload.slug?.trim()
+    ? makeSlug(payload.slug.trim())
+    : makeSlug(categoryName);
   const slug = await ensureUniqueSlug(slugBase);
 
   const categoryData: Partial<ICategory> = {
@@ -143,7 +146,13 @@ const updateCategoryInDB = async (id: string, body: Record<string, unknown>) => 
 
   if (typeof body.categoryName === 'string') {
     category.categoryName = body.categoryName.trim();
-    const slugBase = makeSlug(category.categoryName);
+  }
+
+  if (typeof body.slug === 'string') {
+    const slugBase = makeSlug(body.slug.trim());
+    if (!slugBase) {
+      throw new AppError('Slug is required', httpStatus.BAD_REQUEST);
+    }
     category.slug = await ensureUniqueSlug(slugBase, category._id as Types.ObjectId);
   }
 
