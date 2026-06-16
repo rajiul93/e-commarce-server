@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 import AppError from '../../errors/AppError';
 import { Image } from '../media/image.model';
 import { Product } from '../product/product.model';
+import { ProductService } from '../product/product.service';
 import type { ICollection } from './collection.interface';
 import { Collection } from './collection.model';
 
@@ -22,9 +23,22 @@ const BANNER_POPULATE = {
 
 const PRODUCTS_POPULATE = {
   path: 'products',
-  select: 'title slug status thumbnail minPrice totalStock',
+  select:
+    'title slug status thumbnail averageRating isFeatured isBestSeller offerType offerValue',
   populate: { path: 'thumbnail', select: '_id url name alt' },
 } as const;
+
+const attachProductSummaries = async <T extends { products?: { _id: unknown }[] }>(
+  collections: T[],
+): Promise<T[]> =>
+  Promise.all(
+    collections.map(async (col) => {
+      const products = col.products ?? [];
+      if (!products.length) return col;
+      const summarized = await ProductService.attachVariantSummary(products);
+      return { ...col, products: summarized };
+    }),
+  );
 
 const makeSlug = (value: string): string =>
   value
@@ -77,7 +91,8 @@ const populateOne = async (id: Types.ObjectId | string) => {
   if (!doc) {
     throw new AppError('Collection not found', httpStatus.NOT_FOUND);
   }
-  return doc;
+  const [withSummaries] = await attachProductSummaries([doc]);
+  return withSummaries;
 };
 
 const createCollectionIntoDB = async (payload: CreatePayload) => {
@@ -105,21 +120,25 @@ const listCollectionsFromDB = async (forHome?: boolean) => {
     filter.isActive = true;
   }
 
-  return Collection.find(filter)
+  const rows = await Collection.find(filter)
     .populate(BANNER_POPULATE)
     .populate(PRODUCTS_POPULATE)
     .sort({ sortOrder: 1, createdAt: -1 })
     .lean()
     .exec();
+
+  return attachProductSummaries(rows);
 };
 
 const listAllCollectionsAdminFromDB = async () => {
-  return Collection.find({})
+  const rows = await Collection.find({})
     .populate(BANNER_POPULATE)
     .populate(PRODUCTS_POPULATE)
     .sort({ sortOrder: 1, createdAt: -1 })
     .lean()
     .exec();
+
+  return attachProductSummaries(rows);
 };
 
 const getCollectionByIdFromDB = async (id: string) => {

@@ -620,4 +620,5 @@ export const ProductService = {
   updateProductInDB,
   deleteProductFromDB,
   posSearchProductsFromDB,
+  attachVariantSummary,
 };

@@ -28,6 +28,37 @@ const normalizePairs = (attrs: Variant['attributes']): Variant['attributes'] =>
     value: a.value.trim(),
   }));
 
+const attributesSignature = (attrs: Variant['attributes']): string =>
+  normalizePairs(attrs)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((a) => `${a.name.toLowerCase()}:${a.value.toLowerCase()}`)
+    .join('|');
+
+const assertUniqueAttributesForProduct = async (
+  productId: string,
+  attributes: Variant['attributes'],
+  excludeVariantId?: string,
+): Promise<void> => {
+  const signature = attributesSignature(attributes);
+  const siblings = await VariantModel.find({ productId: new Types.ObjectId(productId) })
+    .select('_id attributes sku')
+    .lean()
+    .exec();
+
+  const duplicate = siblings.find(
+    (v) =>
+      v._id.toString() !== excludeVariantId &&
+      attributesSignature(v.attributes as Variant['attributes']) === signature,
+  );
+
+  if (duplicate) {
+    throw new AppError(
+      'A variant with this attribute combination already exists for this product',
+      httpStatus.CONFLICT,
+    );
+  }
+};
+
 const assertProductExists = async (productId: string): Promise<void> => {
   assertValidObjectId(productId);
   const ok = await Product.exists({ _id: new Types.ObjectId(productId) }).exec();
@@ -65,6 +96,8 @@ const createVariantIntoDB = async (
   if (!attributes.length) {
     throw new AppError('At least one attribute pair is required', httpStatus.BAD_REQUEST);
   }
+
+  await assertUniqueAttributesForProduct(payload.productId, attributes);
 
   if (payload.image) {
     await assertImageExists(payload.image);
@@ -155,6 +188,11 @@ const updateVariantInDB = async (id: string, body: Record<string, unknown>) => {
     if (!normalized.length) {
       throw new AppError('At least one attribute pair is required', httpStatus.BAD_REQUEST);
     }
+    await assertUniqueAttributesForProduct(
+      v.productId.toString(),
+      normalized,
+      v._id.toString(),
+    );
     v.attributes = normalized;
   }
 
