@@ -13,6 +13,7 @@ import { UserAddress } from '../userAddress/userAddress.model';
 import { VariantModel } from '../variant/variant.model';
 import { resolveVariantForProductCheckout } from '../variant/variantCheckout.util';
 import { SettingsService } from '../settings/settings.service';
+import { CartService } from '../cart/cart.service';
 import type {
   IOrder,
   IOrderAddressSnapshot,
@@ -412,11 +413,21 @@ const createOrderIntoDB = async (userId: string, payload: CreateOrderPayload) =>
 
   await deductStockPlan(decrementPlan);
 
-  return persistOrderPaymentAndCoupon({
+  const order = await persistOrderPaymentAndCoupon({
     orderPayload,
     decremented: decrementPlan,
     resolvedCoupon,
   });
+
+  await CartService.removeOrderedItemsFromCart(
+    userId,
+    payload.items.map((item) => ({
+      productId: item.productId,
+      variantId: item.variantId,
+    })),
+  );
+
+  return order;
 };
 
 const createGuestOrderIntoDB = async (payload: GuestOrderPayload) => {

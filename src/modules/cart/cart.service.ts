@@ -211,6 +211,39 @@ const removeCartLineFromDB = async (userId: string, lineId: string) => {
   return fetchPopulatedCart(cart._id as Types.ObjectId);
 };
 
+export type OrderedCartItemRef = {
+  productId: string;
+  variantId?: string;
+};
+
+/** Remove cart lines that were included in a placed order. */
+const removeOrderedItemsFromCart = async (
+  userId: string,
+  items: OrderedCartItemRef[],
+): Promise<void> => {
+  if (!items.length) return;
+
+  assertValidObjectId(userId);
+  const cart = await Cart.findOne({ userId: new Types.ObjectId(userId) }).exec();
+  if (!cart) return;
+
+  let changed = false;
+  for (const ordered of items) {
+    const idx = cart.items.findIndex((it) =>
+      sameCartLineKey(it, ordered.productId, ordered.variantId),
+    );
+    if (idx !== -1) {
+      cart.items.splice(idx, 1);
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    cart.markModified('items');
+    await cart.save();
+  }
+};
+
 const isCartLineSelected = (item: { isSelected?: boolean | null }): boolean =>
   item.isSelected !== false;
 
@@ -353,4 +386,5 @@ export const CartService = {
   updateCartLineInDB,
   getCheckoutPreviewFromDB,
   removeCartLineFromDB,
+  removeOrderedItemsFromCart,
 };
